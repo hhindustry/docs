@@ -90,8 +90,9 @@ l'action ``add`` pour qu'elle ressemble à ceci::
                 }
                 $this->Flash->error(__('Impossible de sauvegarder l\'article.'));
             }
+            
             // Récupère une liste des tags.
-            $tags = $this->Articles->Tags->find('list');
+            $tags = $this->Articles->Tags->find('list')->all();
 
             // Passe les tags au context de la view
             $this->set('tags', $tags);
@@ -134,7 +135,7 @@ maintenant ressemble à ceci::
         }
 
         // Récupère une liste des tags.
-        $tags = $this->Articles->Tags->find('list');
+        $tags = $this->Articles->Tags->find('list')->all();
 
         // Passe les tags au context de la view
         $this->set('tags', $tags);
@@ -162,37 +163,23 @@ devra ressembler à::
 
     <?php
     use Cake\Routing\Route\DashedRoute;
-    use Cake\Routing\Router;
+    use Cake\Routing\RouteBuilder;
 
-    Router::defaultRouteClass(DashedRoute::class);
+    $routes->setRouteClass(DashedRoute::class);
 
-    // Ceci est la route à ajouter pour notre nouvelle action.
-    // Le `*` à la fin permet de préciser à CakePHP que cette action
-    // a des paramètres qui lui seront passés
-    Router::scope(
-        '/articles',
-        ['controller' => 'Articles'],
-        function ($routes) {
-            $routes->connect('/tagged/*', ['action' => 'tags']);
-        }
-    );
+    $routes->scope('/', function (RouteBuilder $builder) {
+        $builder->connect('/', ['controller' => 'Pages', 'action' => 'display', 'home']);
+        $builder->connect('/pages/*', ['controller' => 'Pages', 'action' => 'display']);
 
-    Router::scope('/', function ($routes) {
-        // Connect the default home and /pages/* routes.
-        $routes->connect('/', [
-            'controller' => 'Pages',
-            'action' => 'display', 'home'
-        ]);
-        $routes->connect('/pages/*', [
-            'controller' => 'Pages',
-            'action' => 'display'
-        ]);
+        // Ceci est la route à ajouter pour notre nouvelle action.
+        // Le `*` à la fin permet de préciser à CakePHP que cette action
+        // a des paramètres qui lui seront passés
+        $builder->scope('/articles', function (RouteBuilder $builder) {
+            $builder->connect('/tagged/*', ['controller' => 'Articles', 'action' => 'tags']);
+        });
 
-        // Connect the conventions based default routes.
-        $routes->fallbacks();
+        $builder->fallbacks();
     });
-
-    Plugin::routes();
 
 Le code ci-dessus définit une nouvelle 'route' qui permet de connecter le chemin
 URL **/articles/tagged/** à ``ArticlesController::tags()``. En définissant une nouvelle
@@ -214,8 +201,9 @@ ajoutez ce qui suit::
 
         // Utilisation de ArticlesTable pour trouver les articles taggés
         $articles = $this->Articles->find('tagged', [
-            'tags' => $tags
-        ]);
+                'tags' => $tags
+            ])
+            ->all();
 
         // Passage des variable dans le contexte de la view du template
         $this->set([
@@ -236,7 +224,8 @@ variadic de PHP::
         // Utilisation de ArticlesTable pour trouver les articles taggés
         $articles = $this->Articles->find('tagged', [
             'tags' => $tags
-        ]);
+        ])
+        ->all();
 
         // Passage des variable dans le contexte de la view du template
         $this->set([
@@ -302,6 +291,7 @@ Si vous visitez à nouveau **/articles/tagged**, CakePHP vous affichera une nouv
 erreur qui vous fait savoir qu'il manque le fichier de view. Créez le fichier
 **templates/Articles/tags.php** et ajoutez le contenu suivant::
 
+    <!-- Dans templates/Articles/tags.php -->
     <h1>
         Articles avec les tags
         <?= $this->Text->toList(h($tags), 'ou') ?>
@@ -315,7 +305,7 @@ erreur qui vous fait savoir qu'il manque le fichier de view. Créez le fichier
                 $article->title,
                 ['controller' => 'Articles', 'action' => 'view', $article->slug]
             ) ?></h4>
-            <span><?= h($article->created) ?>
+            <span><?= h($article->created) ?></span>
         </article>
     <?php endforeach; ?>
     </section>
@@ -359,6 +349,12 @@ entity, nous ajoutons un champ virtuel / pré-calculé pour l'entity. Dans
     // la classe Collection
     use Cake\Collection\Collection;
 
+    // Mise à jour de la propriété accessible de façon à ce que cette dernière contienne `tag_string`
+    protected $_accessible = [
+        //Les autres champs sont ici...
+        'tag_string' => true
+    ];
+    
     protected function _getTagString()
     {
         if (isset($this->_fields['tag_string'])) {
@@ -417,18 +413,19 @@ construire les entities correspondantes. Ajoutez le code suivant à
         $newTags = array_unique($newTags);
 
         $out = [];
-        $query = $this->Tags->find()
-            ->where(['Tags.title IN' => $newTags]);
+        $tags = $this->Tags->find()
+            ->where(['Tags.title IN' => $newTags])
+            ->all();
 
         // Retire les tags existant de la liste des nouveaux tags.
-        foreach ($query->extract('title') as $existing) {
+        foreach ($tags->extract('title') as $existing) {
             $index = array_search($existing, $newTags);
             if ($index !== false) {
                 unset($newTags[$index]);
             }
         }
         // Ajout des tags existant.
-        foreach ($query as $tag) {
+        foreach ($tags as $tag) {
             $out[] = $tag;
         }
         // Ajout des nouveaux tags.
@@ -437,6 +434,7 @@ construire les entities correspondantes. Ajoutez le code suivant à
         }
         return $out;
     }
+
 
 Bien que ce code soit plus compliqué que tout ce que nous avons fait jusqu'ici,
 il permet de mettre en avant les fonctions avancées de l'ORM : vous pouvez manipuler
