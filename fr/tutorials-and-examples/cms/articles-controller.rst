@@ -185,7 +185,7 @@ la création d'articles. Commencez par créer une action ``add()`` dans le
     class ArticlesController extends AppController
     {
 
-        public function initialize()
+        public function initialize(): void
         {
             parent::initialize();
 
@@ -319,11 +319,16 @@ créons pas l'attribut "slug" et la colonne correspondante est définie comme
 d'un article. Nous pouvons utiliser le :ref:`callback beforeSave() <table-callbacks>`
 de l'ORM pour créer notre slug::
 
-    // dans src/Model/Table/ArticlesTable.php
+    <?php
+    // in src/Model/Table/ArticlesTable.php
+    namespace App\Model\Table;
 
-    // Ajoutez ce "use" juste sous la déclaration du namespace
+    // pour importer la classe Table
+    use Cake\ORM\Table;
     // pour importer la classe Text
     use Cake\Utility\Text;
+    // pour importer la classe EventInterface
+    use Cake\Event\EventInterface;
 
     // Ajouter la méthode suivante
 
@@ -446,7 +451,7 @@ de ça en utilisant un :ref:`validator <validating-request-data>`::
     use Cake\Validation\Validator;
 
     // Ajouter la méthode suivante.
-    public function validationDefault(Validator $validator)
+    public function validationDefault(Validator $validator): Validator
     {
         $validator
             ->notEmpty('title')
@@ -483,6 +488,8 @@ Commencez par créer une action ``delete()`` dans ``ArticlesController``::
 
     // src/Controller/ArticlesController.php
 
+    // Ajout de la fonction suivante.
+    
     public function delete($slug)
     {
         $this->request->allowMethod(['post', 'delete']);
